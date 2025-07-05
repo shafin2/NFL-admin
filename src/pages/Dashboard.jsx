@@ -30,14 +30,15 @@ const PieChart = ({ data, title }) => {
   const segments = data.map((item, index) => {
     const percentage = (item.value / total) * 100
     const startAngle = accumulatedPercentage * 3.6 // Convert to degrees
-    accumulatedPercentage += percentage
-    
-    return {
+    const segmentData = {
       ...item,
       percentage,
       startAngle,
       color: `hsl(${(index * 137) % 360}, 70%, 50%)`
     }
+    accumulatedPercentage += percentage
+    
+    return segmentData
   })
 
   return (
@@ -50,7 +51,7 @@ const PieChart = ({ data, title }) => {
             {segments.map((segment, index) => {
               const circumference = 2 * Math.PI * 40
               const strokeDasharray = (segment.percentage / 100) * circumference
-              const strokeDashoffset = circumference - (accumulatedPercentage / 100) * circumference
+              const strokeDashoffset = circumference - (segment.startAngle / 360) * circumference
               
               return (
                 <circle

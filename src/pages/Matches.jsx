@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Calendar, Plus, Edit, Trash2, Filter, Search, Tv } from 'lucide-react'
 import { apiService } from '../services/apiService'
 import Button from '../components/ui/Button'
@@ -38,6 +38,7 @@ const Matches = () => {
     search: '',
     status: ''
   })
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   
   // Modal states
   const [showMatchForm, setShowMatchForm] = useState(false)
@@ -49,10 +50,19 @@ const Matches = () => {
 
   const itemsPerPage = 20
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filters.search)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [filters.search])
+
   useEffect(() => {
     fetchMatches()
     fetchChannels()
-  }, [currentPage, filters])
+  }, [currentPage, filters.status, debouncedSearch])
 
   const fetchMatches = async () => {
     try {
@@ -60,7 +70,8 @@ const Matches = () => {
       const params = {
         page: currentPage,
         limit: itemsPerPage,
-        ...filters
+        search: debouncedSearch,
+        status: filters.status
       }
       
       const response = await apiService.getMatches(params)
