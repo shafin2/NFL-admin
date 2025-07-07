@@ -7,7 +7,8 @@ import {
   Settings, 
   Shield,
   LogOut,
-  Clock
+  Clock,
+  Bell
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -51,6 +52,12 @@ const Sidebar = () => {
       href: '/cron-jobs',
       icon: Clock,
       current: location.pathname === '/cron-jobs'
+    },
+    {
+      name: 'Notifications',
+      href: '/notifications',
+      icon: Bell,
+      current: location.pathname === '/notifications'
     }
   ]
 
@@ -62,9 +69,9 @@ const Sidebar = () => {
     <div className="flex flex-col w-64 bg-white shadow-lg">
       {/* Logo */}
       <div className="flex items-center justify-center h-16 px-4 bg-primary-600">
-        <div className="flex items-center gap-3">
-          <Shield className="w-8 h-8 text-white" />
-          <span className="text-xl font-bold text-white">NFL Admin</span>
+        <div className="flex items-center">
+        <img src="/icon.png" alt="NFL Logo" className="w-16 h-16" />
+        <span className="text-xl font-bold text-white">Admin Panel</span>
         </div>
       </div>
 

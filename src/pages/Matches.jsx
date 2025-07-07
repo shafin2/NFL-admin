@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Plus, Edit, Trash2, Filter, Search, Tv } from 'lucide-react'
+import { Calendar, Plus, Edit, Trash2, Search, Eye } from 'lucide-react'
 import { apiService } from '../services/apiService'
 import Button from '../components/ui/Button'
 import Table from '../components/ui/Table'
@@ -18,13 +18,11 @@ const statusTabs = [
   { value: 'upcoming', label: 'Upcoming' },
   { value: 'live', label: 'Live' },
   { value: 'replay', label: 'Replay' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'closed', label: 'Closed' }
+  { value: 'completed', label: 'Completed' }
 ]
 
 const Matches = () => {
   const [matches, setMatches] = useState([])
-  const [channels, setChannels] = useState([])
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState({
     current_page: 1,
@@ -51,7 +49,6 @@ const Matches = () => {
 
   useEffect(() => {
     fetchMatches()
-    fetchChannels()
   }, [currentPage, filters])
 
   const fetchMatches = async () => {
@@ -78,17 +75,6 @@ const Matches = () => {
     }
   }
 
-  const fetchChannels = async () => {
-    try {
-      const response = await apiService.getChannels()
-      if (response.success) {
-        setChannels(response.data.channels || response.data || [])
-      }
-    } catch (error) {
-      console.error('Error fetching channels:', error)
-    }
-  }
-
   const handleCreateMatch = () => {
     setEditingMatch(null)
     setShowMatchForm(true)
@@ -97,6 +83,10 @@ const Matches = () => {
   const handleEditMatch = (match) => {
     setEditingMatch(match)
     setShowMatchForm(true)
+  }
+
+  const handleViewMatch = (match) => {
+    navigate(`/matches/${match._id}`)
   }
 
   const handleDeleteMatch = (match) => {
@@ -147,19 +137,9 @@ const Matches = () => {
       upcoming: 'bg-blue-100 text-blue-800',
       live: 'bg-red-100 text-red-800',
       completed: 'bg-green-100 text-green-800',
-      closed: 'bg-gray-100 text-gray-800',
       replay: 'bg-purple-100 text-purple-800'
     }
     return badges[status] || 'bg-gray-100 text-gray-800'
-  }
-
-  const getChannelNames = (channelIds) => {
-    if (!channelIds || channelIds.length === 0) return 'No channels'
-    const channelNames = channelIds.map(id => {
-      const channel = channels.find(c => c._id === id)
-      return channel ? channel.name : 'Unknown'
-    })
-    return channelNames.join(', ')
   }
 
   const columns = [
@@ -202,18 +182,17 @@ const Matches = () => {
       sortable: false,
       render: (_, match) => (
         <div className="text-sm text-gray-900">
-          {match.score?.away || 0} - {match.score?.home || 0}
+          {match.score?.home || 0} - {match.score?.away || 0}
         </div>
       )
     },
     {
-      key: 'live_channel_ids',
-      label: 'Channels',
+      key: 'm3u8_links',
+      label: 'Stream Links',
       sortable: false,
       render: (value) => (
-        <div className="flex items-center gap-1">
-          <Tv className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-600">{getChannelNames(value)}</span>
+        <div className="text-sm text-gray-500">
+          {value && value.length > 0 ? `${value.length} link(s)` : 'No links'}
         </div>
       )
     },
@@ -226,21 +205,31 @@ const Matches = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate(`/matches/${match._id}`)}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleViewMatch(match)
+            }}
           >
-            View
+            <Eye className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleEditMatch(match)}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleEditMatch(match)
+            }}
           >
             <Edit className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleDeleteMatch(match)}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDeleteMatch(match)
+            }}
+            className="text-red-600 hover:text-red-700"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -249,113 +238,103 @@ const Matches = () => {
     }
   ]
 
-  const totalPages = pagination.total_pages
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Matches</h1>
-          <p className="text-gray-600">Manage NFL match schedules and information</p>
+          <p className="text-gray-600 mt-1">
+            Manage NFL matches and streaming links
+          </p>
         </div>
         <Button onClick={handleCreateMatch}>
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 mr-2" />
           Add Match
         </Button>
       </div>
 
       {/* Status Tabs */}
-      <div className="flex gap-2 mb-4">
-        {statusTabs.map(tab => (
-          <button
-            key={tab.value}
-            className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${filters.status === tab.value ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-            onClick={() => handleFilterChange('status', tab.value)}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="border-b border-gray-200">
+        <nav className="flex space-x-8">
+          {statusTabs.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => handleFilterChange('status', tab.value)}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                filters.status === tab.value
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center gap-4 mb-4">
-          <Filter className="w-5 h-5 text-gray-400" />
-          <h3 className="text-lg font-medium text-gray-900">Filters</h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input
-            placeholder="Search matches..."
-            value={filters.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-            className="w-full"
-          />
-          
-          <Select
-            placeholder="Filter by status"
-            options={statusTabs}
-            value={filters.status}
-            onChange={(e) => handleFilterChange('status', e.target.value)}
-          />
-          
-          <Button variant="outline" onClick={resetFilters}>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Input
+                placeholder="Search matches..."
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={resetFilters}
+            disabled={!filters.search && !filters.status}
+          >
             Clear Filters
           </Button>
         </div>
       </div>
 
       {/* Table */}
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <LoadingSpinner size="lg" text="Loading matches..." />
-        </div>
-      ) : matches.length === 0 ? (
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-12 text-center">
-            <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No matches found</h3>
-            <p className="text-gray-600 mb-6">
-              {Object.values(filters).some(f => f) 
-                ? 'No matches match your current filters.' 
-                : 'Get started by adding your first NFL match.'
-              }
-            </p>
-            <Button onClick={handleCreateMatch}>
-              <Plus className="w-4 h-4" />
-              Add First Match
-            </Button>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <LoadingSpinner size="lg" />
           </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <Table
-            columns={columns}
-            data={matches}
-            loading={loading}
-          />
-          
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={pagination.total_matches}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-          />
-        </div>
-      )}
+        ) : (
+          <>
+            <Table
+              data={matches}
+              columns={columns}
+              emptyMessage="No matches found"
+              onRowClick={handleViewMatch}
+              rowClassName="cursor-pointer hover:bg-gray-50"
+            />
+            {pagination.total_matches > itemsPerPage && (
+              <div className="border-t border-gray-200 px-6 py-4">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={pagination.total_matches}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Match Form Modal */}
       <Modal
         isOpen={showMatchForm}
         onClose={() => setShowMatchForm(false)}
-        title={editingMatch ? 'Edit Match' : 'Add New Match'}
-        size="lg"
+        title={editingMatch ? 'Edit Match' : 'Create Match'}
+        size="xl"
       >
         <MatchForm
           match={editingMatch}
-          channels={channels}
           onSave={handleMatchSaved}
           onCancel={() => setShowMatchForm(false)}
         />
@@ -367,7 +346,7 @@ const Matches = () => {
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Delete Match"
-        message={`Are you sure you want to delete the match "${deletingMatch?.home_team} vs ${deletingMatch?.away_team}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete "${deletingMatch?.title}"? This action cannot be undone.`}
         confirmText="Delete"
         loading={deleteLoading}
       />

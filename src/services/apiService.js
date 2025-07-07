@@ -9,36 +9,43 @@ class ApiService {
       timeout: 10000,
     })
 
+    // Create a separate instance for long-running operations like jobs
+    this.longRunningApi = axios.create({
+      baseURL: BASE_URL,
+      timeout: 120000, // 2 minutes for job operations
+    })
+
     // Request interceptor to add auth token
-    this.api.interceptors.request.use(
-      (config) => {
-        const token = this.getAuthToken()
-        if (token) {
-          config.headers['Authorization'] = `Bearer ${token}`
-        }
-        return config
-      },
-      (error) => {
-        return Promise.reject(error)
+    const requestInterceptor = (config) => {
+      const token = this.getAuthToken()
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`
       }
-    )
+      return config
+    }
 
     // Response interceptor for error handling
-    this.api.interceptors.response.use(
-      (response) => {
-        return response.data
-      },
-      (error) => {
-        if (error.response?.status === 401) {
-          // Token expired or invalid, clear auth data and redirect to login
-          localStorage.removeItem('nfl_admin_token')
-          localStorage.removeItem('nfl_admin_user')
-          this.authToken = null
-          window.location.href = '/login'
-        }
-        return Promise.reject(error.response?.data || error.message)
+    const responseInterceptor = (response) => {
+      return response.data
+    }
+
+    const errorInterceptor = (error) => {
+      if (error.response?.status === 401) {
+        // Token expired or invalid, clear auth data and redirect to login
+        localStorage.removeItem('nfl_admin_token')
+        localStorage.removeItem('nfl_admin_user')
+        this.authToken = null
+        window.location.href = '/login'
       }
-    )
+      return Promise.reject(error.response?.data || error.message)
+    }
+
+    // Apply interceptors to both instances
+    this.api.interceptors.request.use(requestInterceptor)
+    this.api.interceptors.response.use(responseInterceptor, errorInterceptor)
+    
+    this.longRunningApi.interceptors.request.use(requestInterceptor)
+    this.longRunningApi.interceptors.response.use(responseInterceptor, errorInterceptor)
   }
 
   setAuthToken(token) {
@@ -88,6 +95,10 @@ class ApiService {
 
   async deleteMatch(id) {
     return await this.api.delete(`/admin/matches/${id}`)
+  }
+
+  async getChannelsForDropdown() {
+    return await this.api.get('/admin/matches/channels/dropdown')
   }
 
   // News
@@ -141,13 +152,52 @@ class ApiService {
     return await this.api.put('/admin/app-settings', data)
   }
 
-  // Cron Jobs
+  // Job History - Using longer timeout for job operations
+  async getJobHistory(params = {}) {
+    return await this.api.get('/admin/jobs', { params })
+  }
+
+  async getJobDetails(id) {
+    return await this.api.get(`/admin/jobs/${id}`)
+  }
+
+  async getJobStats() {
+    return await this.api.get('/admin/jobs/stats')
+  }
+
+  async getApiStats() {
+    return await this.api.get('/admin/jobs/api-stats')
+  }
+
+  async resetApiStats() {
+    return await this.longRunningApi.post('/admin/jobs/api-stats/reset')
+  }
+
+  // Use long-running API for job triggers (can take 1-2 minutes)
+  async triggerJob(data) {
+    return await this.longRunningApi.post('/admin/jobs/trigger', data)
+  }
+
+  async cancelJob(id) {
+    return await this.longRunningApi.put(`/admin/jobs/${id}/cancel`)
+  }
+
+  async cleanupJobHistory(data) {
+    return await this.longRunningApi.delete('/admin/jobs/cleanup', { data })
+  }
+
   async getCronJobsStatus() {
     return await this.api.get('/admin/cron/status')
   }
 
   async triggerCronJob(jobName) {
-    return await this.api.post(`/admin/cron/trigger/${jobName}`)
+    return await this.longRunningApi.post(`/admin/cron/trigger/${jobName}`)
+  }
+
+  // Notifications
+  async sendNotification(data) {
+    // data: { title, body, link }
+    return await this.api.post('/admin/notifications/send', data)
   }
 }
 

@@ -12,6 +12,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/layout/Layout'
 import MatchDetail from './pages/MatchDetail'
 import NewsDetail from './pages/NewsDetail'
+import Notifications from './pages/Notifications'
 
 function App() {
   return (
@@ -73,6 +74,13 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <NewsDetail />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/notifications" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Notifications />
                 </Layout>
               </ProtectedRoute>
             } />

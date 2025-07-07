@@ -11,21 +11,18 @@ const statusOptions = [
   { value: 'upcoming', label: 'Upcoming' },
   { value: 'live', label: 'Live' },
   { value: 'completed', label: 'Completed' },
-  { value: 'closed', label: 'Closed' },
   { value: 'replay', label: 'Replay' }
 ]
 
-const MatchForm = ({ match, channels, onSave, onCancel }) => {
+const MatchForm = ({ match, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
-    game_id: '',
     title: '',
     round: '',
     home_team: '',
     away_team: '',
     scheduled_at: '',
     status: 'upcoming',
-    m3u8_links: [{ name: '', url: '' }],
-    live_channel_ids: [],
+    m3u8_links: [],
     score: { home: 0, away: 0 },
     metadata: {
       venue: { name: '', city: '', state: '' },
@@ -33,21 +30,21 @@ const MatchForm = ({ match, channels, onSave, onCancel }) => {
       weather: ''
     }
   })
+  const [channels, setChannels] = useState([])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
+    fetchChannels()
     if (match) {
       setFormData({
-        game_id: match.game_id || '',
         title: match.title || '',
         round: match.round || '',
         home_team: match.home_team || '',
         away_team: match.away_team || '',
         scheduled_at: match.scheduled_at ? new Date(match.scheduled_at).toISOString().slice(0, 16) : '',
         status: match.status || 'upcoming',
-        m3u8_links: match.m3u8_links && match.m3u8_links.length > 0 ? match.m3u8_links : [{ name: '', url: '' }],
-        live_channel_ids: match.live_channel_ids || [],
+        m3u8_links: match.m3u8_links || [],
         score: match.score || { home: 0, away: 0 },
         metadata: {
           venue: match.metadata?.venue || { name: '', city: '', state: '' },
@@ -58,12 +55,39 @@ const MatchForm = ({ match, channels, onSave, onCancel }) => {
     }
   }, [match])
 
+  const fetchChannels = async () => {
+    try {
+      const response = await apiService.getChannelsForDropdown()
+      if (response.success) {
+        setChannels(response.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching channels:', error)
+    }
+  }
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
+  }
+
+  const handleStatusChange = (event) => {
+    const status = event.target.value
+    setFormData(prev => {
+      const newData = { ...prev, status }
+      // Clear m3u8_links if status is upcoming
+      if (status === 'upcoming') {
+        newData.m3u8_links = []
+      }
+      // Add empty m3u8_links if status is live or replay and no links exist
+      else if ((status === 'live' || status === 'replay') && newData.m3u8_links.length === 0) {
+        newData.m3u8_links = [{ name: '', url: '' }]
+      }
+      return newData
+    })
   }
 
   const handleM3u8LinkChange = (index, field, value) => {
@@ -113,10 +137,6 @@ const MatchForm = ({ match, channels, onSave, onCancel }) => {
   const validateForm = () => {
     const newErrors = {}
 
-    if (!formData.game_id.trim()) {
-      newErrors.game_id = 'Game ID is required'
-    }
-
     if (!formData.title.trim()) {
       newErrors.title = 'Title is required'
     }
@@ -137,12 +157,15 @@ const MatchForm = ({ match, channels, onSave, onCancel }) => {
       newErrors.status = 'Status is required'
     }
 
-    // Validate m3u8 links
-    const validM3u8Links = formData.m3u8_links.filter(link => link.name.trim() && link.url.trim())
-    if (validM3u8Links.length > 0) {
-      const invalidLinks = validM3u8Links.some(link => !isValidUrl(link.url))
-      if (invalidLinks) {
-        newErrors.m3u8_links = 'Please enter valid URLs for all m3u8 links'
+    // Validate m3u8 links based on status
+    if (formData.status === 'live' || formData.status === 'replay') {
+      if (!formData.m3u8_links || formData.m3u8_links.length === 0) {
+        newErrors.m3u8_links = 'M3U8 links are required for live and replay matches'
+      } else {
+        const invalidLinks = formData.m3u8_links.some(link => !link.name.trim() || !link.url.trim() || !isValidUrl(link.url))
+        if (invalidLinks) {
+          newErrors.m3u8_links = 'All M3U8 links must have both name and valid URL'
+        }
       }
     }
 
@@ -153,7 +176,7 @@ const MatchForm = ({ match, channels, onSave, onCancel }) => {
   const isValidUrl = (string) => {
     try {
       new URL(string)
-      return true
+      return string.includes('.m3u8')
     } catch (_) {
       return false
     }
@@ -170,7 +193,7 @@ const MatchForm = ({ match, channels, onSave, onCancel }) => {
     try {
       setLoading(true)
       
-      // Filter out empty m3u8 links and prepare data
+      // Prepare data
       const cleanFormData = {
         ...formData,
         m3u8_links: formData.m3u8_links.filter(link => link.name.trim() && link.url.trim()),
@@ -198,36 +221,28 @@ const MatchForm = ({ match, channels, onSave, onCancel }) => {
     }
   }
 
-  const channelOptions = channels.map(channel => ({
-    value: channel._id,
-    label: channel.name
-  }))
+  const canAddM3u8Links = formData.status === 'live' || formData.status === 'replay'
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Basic Information */}
+      {/* Basic Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
-          label="Game ID"
-          value={formData.game_id}
-          onChange={(e) => handleInputChange('game_id', e.target.value)}
-          error={errors.game_id}
-          required
-          placeholder="e.g., game-123-456"
-        />
-        
-        <Input
-          label="Title"
+          label="Match Title"
           value={formData.title}
           onChange={(e) => handleInputChange('title', e.target.value)}
           error={errors.title}
           required
-          placeholder="e.g., NFC Wild Card"
+          placeholder="e.g., Chiefs vs Cowboys"
         />
-      </div>
 
-      {/* Team Information */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Input
+          label="Round"
+          value={formData.round}
+          onChange={(e) => handleInputChange('round', e.target.value)}
+          placeholder="e.g., Week 1, Wild Card"
+        />
+
         <Input
           label="Home Team"
           value={formData.home_team}
@@ -236,26 +251,16 @@ const MatchForm = ({ match, channels, onSave, onCancel }) => {
           required
           placeholder="e.g., Kansas City Chiefs"
         />
-        
+
         <Input
           label="Away Team"
           value={formData.away_team}
           onChange={(e) => handleInputChange('away_team', e.target.value)}
           error={errors.away_team}
           required
-          placeholder="e.g., Buffalo Bills"
+          placeholder="e.g., Dallas Cowboys"
         />
 
-        <Input
-          label="Round"
-          value={formData.round}
-          onChange={(e) => handleInputChange('round', e.target.value)}
-          placeholder="e.g., Wild Card Round"
-        />
-      </div>
-
-      {/* Date and Status */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Scheduled Date & Time"
           type="datetime-local"
@@ -264,163 +269,147 @@ const MatchForm = ({ match, channels, onSave, onCancel }) => {
           error={errors.scheduled_at}
           required
         />
-        
+
         <Select
           label="Status"
           value={formData.status}
-          onChange={(e) => handleInputChange('status', e.target.value)}
+          onChange={handleStatusChange}
           options={statusOptions}
           error={errors.status}
           required
         />
       </div>
 
-      {/* Scores */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Home Team Score"
-          type="number"
-          min="0"
-          value={formData.score.home}
-          onChange={(e) => handleScoreChange('home', e.target.value)}
-          placeholder="0"
-        />
-        
-        <Input
-          label="Away Team Score"
-          type="number"
-          min="0"
-          value={formData.score.away}
-          onChange={(e) => handleScoreChange('away', e.target.value)}
-          placeholder="0"
-        />
+      {/* M3U8 Links */}
+      {canAddM3u8Links && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              M3U8 Stream Links
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addM3u8Link}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add Link
+            </Button>
+          </div>
+
+          {formData.m3u8_links.map((link, index) => (
+            <div key={index} className="flex items-start gap-2">
+              <div className="flex-1">
+                <Select
+                  label={index === 0 ? 'Stream Name' : ''}
+                  value={link.name}
+                  onChange={(e) => handleM3u8LinkChange(index, 'name', e.target.value)}
+                  options={channels.map(channel => ({
+                    value: channel.name,
+                    label: channel.name
+                  }))}
+                  placeholder="Select channel name"
+                  required
+                />
+              </div>
+              <div className="flex-1">
+                <Input
+                  label={index === 0 ? 'Stream URL' : ''}
+                  value={link.url}
+                  onChange={(e) => handleM3u8LinkChange(index, 'url', e.target.value)}
+                  placeholder="https://example.com/stream.m3u8"
+                  required
+                />
+              </div>
+              {formData.m3u8_links.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeM3u8Link(index)}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          ))}
+          
+          {errors.m3u8_links && (
+            <p className="text-sm text-red-600">{errors.m3u8_links}</p>
+          )}
+        </div>
+      )}
+
+      {/* Score */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-900">Score</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Home Score"
+            type="number"
+            min="0"
+            value={formData.score.home}
+            onChange={(e) => handleScoreChange('home', e.target.value)}
+          />
+          <Input
+            label="Away Score"
+            type="number"
+            min="0"
+            value={formData.score.away}
+            onChange={(e) => handleScoreChange('away', e.target.value)}
+          />
+        </div>
       </div>
 
-      {/* Venue Information */}
+      {/* Metadata */}
       <div className="space-y-4">
-        <h4 className="text-sm font-medium text-gray-700">Venue Information</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <h3 className="text-lg font-medium text-gray-900">Additional Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Venue Name"
             value={formData.metadata.venue.name}
             onChange={(e) => handleVenueChange('name', e.target.value)}
-            placeholder="e.g., Lincoln Financial Field"
+            placeholder="e.g., Arrowhead Stadium"
           />
-          
           <Input
             label="City"
             value={formData.metadata.venue.city}
             onChange={(e) => handleVenueChange('city', e.target.value)}
-            placeholder="e.g., Philadelphia"
+            placeholder="e.g., Kansas City"
           />
-          
           <Input
             label="State"
             value={formData.metadata.venue.state}
             onChange={(e) => handleVenueChange('state', e.target.value)}
-            placeholder="e.g., PA"
+            placeholder="e.g., Missouri"
+          />
+          <Input
+            label="Game Type"
+            value={formData.metadata.game_type}
+            onChange={(e) => handleMetadataChange('game_type', e.target.value)}
+            placeholder="e.g., Regular Season, Playoff"
           />
         </div>
-      </div>
-
-      {/* Additional Metadata */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Game Type"
-          value={formData.metadata.game_type}
-          onChange={(e) => handleMetadataChange('game_type', e.target.value)}
-          placeholder="e.g., playoff, regular"
-        />
-        
-        <Input
+        <TextArea
           label="Weather"
           value={formData.metadata.weather}
           onChange={(e) => handleMetadataChange('weather', e.target.value)}
-          placeholder="e.g., Cloudy, 40°F"
+          placeholder="e.g., Clear, 72°F, Wind 5 mph"
+          rows={2}
         />
       </div>
 
-      {/* Channel Assignment */}
-      <div className="space-y-4">
-        <label className="block text-sm font-medium text-gray-700">
-          Assigned Channels (Multi-select)
-        </label>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {channelOptions.map(channel => (
-            <label key={channel.value} className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={formData.live_channel_ids.includes(channel.value)}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setFormData(prev => ({
-                      ...prev,
-                      live_channel_ids: [...prev.live_channel_ids, channel.value]
-                    }))
-                  } else {
-                    setFormData(prev => ({
-                      ...prev,
-                      live_channel_ids: prev.live_channel_ids.filter(id => id !== channel.value)
-                    }))
-                  }
-                }}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm">{channel.label}</span>
-            </label>
-          ))}
+      {/* Status Info */}
+      {formData.status === 'upcoming' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> M3U8 links cannot be added for upcoming matches. Change status to 'Live' or 'Replay' to add streaming links.
+          </p>
         </div>
-      </div>
-
-      {/* M3U8 Links */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium text-gray-700">
-            M3U8 Stream Links
-          </label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addM3u8Link}
-          >
-            <Plus className="w-4 h-4" />
-            Add Link
-          </Button>
-        </div>
-        
-        {formData.m3u8_links.map((link, index) => (
-          <div key={index} className="flex items-start gap-2">
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
-              <Input
-                value={link.name}
-                onChange={(e) => handleM3u8LinkChange(index, 'name', e.target.value)}
-                placeholder={`Stream name ${index + 1}`}
-              />
-              <Input
-                type="url"
-                value={link.url}
-                onChange={(e) => handleM3u8LinkChange(index, 'url', e.target.value)}
-                placeholder={`Stream URL ${index + 1}`}
-              />
-            </div>
-            {formData.m3u8_links.length > 1 && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => removeM3u8Link(index)}
-                className="mt-1"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
-        ))}
-        {errors.m3u8_links && (
-          <p className="text-sm text-red-600">{errors.m3u8_links}</p>
-        )}
-      </div>
+      )}
 
       {/* Form Actions */}
       <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">

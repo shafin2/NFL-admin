@@ -3,6 +3,7 @@ import { apiService } from '../services/apiService'
 import Button from './ui/Button'
 import Input from './ui/Input'
 import TextArea from './ui/TextArea'
+import Select from './ui/Select'
 import Switch from './ui/Switch'
 import toast from 'react-hot-toast'
 
@@ -10,10 +11,13 @@ const NewsForm = ({ news, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
     headline: '',
     description: '',
-    image: '',
-    source_link: '',
-    published_date: '',
-    is_featured: false
+    image_url: '',
+    image_alt: '',
+    image_caption: '',
+    byline: '',
+    published_at: '',
+    type: 'Story',
+    is_premium: false
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
@@ -23,18 +27,21 @@ const NewsForm = ({ news, onSave, onCancel }) => {
       setFormData({
         headline: news.headline || '',
         description: news.description || '',
-        image: news.image || '',
-        source_link: news.source_link || '',
-        published_date: news.published_date 
-          ? new Date(news.published_date).toISOString().slice(0, 16) 
+        image_url: news.image_url || '',
+        image_alt: news.image_alt || '',
+        image_caption: news.image_caption || '',
+        byline: news.byline || '',
+        published_at: news.published_at 
+          ? new Date(news.published_at).toISOString().slice(0, 16) 
           : new Date().toISOString().slice(0, 16),
-        is_featured: news.is_featured || false
+        type: news.type || 'Story',
+        is_premium: news.is_premium || false
       })
     } else {
       // Set default published date to now for new articles
       setFormData(prev => ({
         ...prev,
-        published_date: new Date().toISOString().slice(0, 16)
+        published_at: new Date().toISOString().slice(0, 16)
       }))
     }
   }, [news])
@@ -58,17 +65,13 @@ const NewsForm = ({ news, onSave, onCancel }) => {
       newErrors.description = 'Description is required'
     }
 
-    if (!formData.published_date) {
-      newErrors.published_date = 'Published date is required'
+    if (!formData.published_at) {
+      newErrors.published_at = 'Published date is required'
     }
 
     // Validate URLs if provided
-    if (formData.image && !isValidUrl(formData.image)) {
-      newErrors.image = 'Please enter a valid image URL'
-    }
-
-    if (formData.source_link && !isValidUrl(formData.source_link)) {
-      newErrors.source_link = 'Please enter a valid source URL'
+    if (formData.image_url && !isValidUrl(formData.image_url)) {
+      newErrors.image_url = 'Please enter a valid image URL'
     }
 
     setErrors(newErrors)
@@ -97,7 +100,7 @@ const NewsForm = ({ news, onSave, onCancel }) => {
       
       const cleanFormData = {
         ...formData,
-        published_date: new Date(formData.published_date).toISOString()
+        published_at: new Date(formData.published_at).toISOString()
       }
 
       let response
@@ -148,70 +151,108 @@ const NewsForm = ({ news, onSave, onCancel }) => {
       <Input
         label="Image URL"
         type="url"
-        value={formData.image}
-        onChange={(e) => handleInputChange('image', e.target.value)}
-        error={errors.image}
+        value={formData.image_url}
+        onChange={(e) => handleInputChange('image_url', e.target.value)}
+        error={errors.image_url}
         placeholder="https://example.com/image.jpg"
       />
 
-      {/* Source Link */}
+      {/* Image Alt Text */}
       <Input
-        label="Source Link"
-        type="url"
-        value={formData.source_link}
-        onChange={(e) => handleInputChange('source_link', e.target.value)}
-        error={errors.source_link}
-        placeholder="https://example.com/original-article"
+        label="Image Alt Text"
+        value={formData.image_alt}
+        onChange={(e) => handleInputChange('image_alt', e.target.value)}
+        placeholder="Describe the image for accessibility"
+      />
+
+      {/* Image Caption */}
+      <Input
+        label="Image Caption"
+        value={formData.image_caption}
+        onChange={(e) => handleInputChange('image_caption', e.target.value)}
+        placeholder="Caption or credit for the image"
+      />
+
+      {/* Byline */}
+      <Input
+        label="Author/Byline"
+        value={formData.byline}
+        onChange={(e) => handleInputChange('byline', e.target.value)}
+        placeholder="Author name or source"
       />
 
       {/* Published Date */}
       <Input
         label="Published Date"
         type="datetime-local"
-        value={formData.published_date}
-        onChange={(e) => handleInputChange('published_date', e.target.value)}
-        error={errors.published_date}
+        value={formData.published_at}
+        onChange={(e) => handleInputChange('published_at', e.target.value)}
+        error={errors.published_at}
         required
       />
 
-      {/* Featured Toggle */}
+      {/* Type Selection */}
+      <Select
+        label="Article Type"
+        value={formData.type}
+        onChange={(e) => handleInputChange('type', e.target.value)}
+        options={[
+          { value: 'Story', label: 'Story' },
+          { value: 'Video', label: 'Video' },
+          { value: 'Photo', label: 'Photo' },
+          { value: 'Breaking', label: 'Breaking News' }
+        ]}
+      />
+
+      {/* Premium Toggle */}
       <div className="border-t border-gray-200 pt-6">
         <Switch
-          label="Featured Article"
-          description="Mark this article as featured to highlight it in the app"
-          checked={formData.is_featured}
-          onChange={(checked) => handleInputChange('is_featured', checked)}
+          label="Premium Article"
+          description="Mark this article as premium content"
+          checked={formData.is_premium}
+          onChange={(checked) => handleInputChange('is_premium', checked)}
         />
       </div>
 
       {/* Preview Section */}
-      {(formData.headline || formData.description || formData.image) && (
+      {(formData.headline || formData.description || formData.image_url) && (
         <div className="border-t border-gray-200 pt-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Preview</h3>
           <div className="bg-gray-50 rounded-lg p-4">
-            {formData.image && (
-              <img 
-                src={formData.image} 
-                alt="Preview" 
-                className="w-full h-48 object-cover rounded-lg mb-4"
-                onError={(e) => {
-                  e.target.style.display = 'none'
-                }}
-              />
+            {formData.image_url && (
+              <div className="mb-4">
+                <img 
+                  src={formData.image_url} 
+                  alt={formData.image_alt || "Preview"} 
+                  className="w-full h-48 object-cover rounded-lg"
+                  onError={(e) => {
+                    e.target.style.display = 'none'
+                  }}
+                />
+                {formData.image_caption && (
+                  <p className="text-xs text-gray-500 mt-1">{formData.image_caption}</p>
+                )}
+              </div>
             )}
             {formData.headline && (
               <h4 className="font-semibold text-gray-900 mb-2">{formData.headline}</h4>
             )}
+            {formData.byline && (
+              <p className="text-sm text-gray-600 mb-2">By {formData.byline}</p>
+            )}
             {formData.description && (
               <p className="text-gray-600 text-sm">{formData.description}</p>
             )}
-            {formData.is_featured && (
-              <div className="mt-2">
+            <div className="mt-2 flex gap-2">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {formData.type}
+              </span>
+              {formData.is_premium && (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                  Featured Article
+                  Premium
                 </span>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}

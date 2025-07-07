@@ -8,6 +8,9 @@ const Table = ({
   onSort,
   sortColumn,
   sortDirection,
+  onRowClick,
+  rowClassName = '',
+  emptyMessage = 'No data available',
   className = '' 
 }) => {
   const handleSort = (column) => {
@@ -17,6 +20,12 @@ const Table = ({
       sortColumn === column.key && sortDirection === 'asc' ? 'desc' : 'asc'
     
     onSort(column.key, newDirection)
+  }
+
+  const handleRowClick = (row) => {
+    if (onRowClick) {
+      onRowClick(row)
+    }
   }
 
   if (loading) {
@@ -78,12 +87,16 @@ const Table = ({
                   colSpan={columns.length} 
                   className="px-6 py-12 text-center text-gray-500"
                 >
-                  No data available
+                  {emptyMessage}
                 </td>
               </tr>
             ) : (
               data.map((row, rowIndex) => (
-                <tr key={rowIndex} className="hover:bg-gray-50">
+                <tr 
+                  key={rowIndex} 
+                  className={`hover:bg-gray-50 ${rowClassName} ${onRowClick ? 'cursor-pointer' : ''}`}
+                  onClick={() => handleRowClick(row)}
+                >
                   {columns.map((column) => (
                     <td key={column.key} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {column.render ? column.render(row[column.key], row) : row[column.key]}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Newspaper, Plus, Edit, Trash2, Filter, Star, ExternalLink, Image } from 'lucide-react'
+import { Newspaper, Plus, Edit, Trash2, Filter, ExternalLink, Image, Crown, Calendar } from 'lucide-react'
 import { apiService } from '../services/apiService'
 import Button from '../components/ui/Button'
 import Table from '../components/ui/Table'
@@ -25,7 +25,8 @@ const News = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [filters, setFilters] = useState({
     search: '',
-    featured: ''
+    type: '',
+    is_premium: ''
   })
   
   // Modal states
@@ -116,24 +117,12 @@ const News = () => {
   }
 
   const resetFilters = () => {
-    setFilters({ search: '', featured: '' })
+    setFilters({ search: '', type: '', is_premium: '' })
     setCurrentPage(1)
   }
 
-  const toggleFeatured = async (newsItem) => {
-    try {
-      const response = await apiService.updateNews(newsItem._id, {
-        ...newsItem,
-        is_featured: !newsItem.is_featured
-      })
-      if (response.success) {
-        toast.success(`Article ${newsItem.is_featured ? 'removed from' : 'marked as'} featured`)
-        fetchNews()
-      }
-    } catch (error) {
-      console.error('Error updating featured status:', error)
-      toast.error('Failed to update featured status')
-    }
+  const handleRowClick = (newsItem) => {
+    navigate(`/news/${newsItem._id}`)
   }
 
   const columns = [
@@ -143,10 +132,10 @@ const News = () => {
       sortable: true,
       render: (value, article) => (
         <div className="flex items-start gap-3">
-          {article.image ? (
+          {article.image_url ? (
             <img 
-              src={article.image} 
-              alt="" 
+              src={article.image_url} 
+              alt={article.image_alt || ""} 
               className="w-16 h-12 object-cover rounded-lg bg-gray-100"
               onError={(e) => {
                 e.target.style.display = 'none'
@@ -162,56 +151,69 @@ const News = () => {
             <p className="text-sm text-gray-500 line-clamp-1 mt-1">
               {article.description}
             </p>
+            {article.byline && (
+              <p className="text-xs text-gray-400 mt-1">By {article.byline}</p>
+            )}
           </div>
         </div>
       )
     },
     {
-      key: 'published_date',
+      key: 'published_at',
       label: 'Published',
       sortable: true,
       render: (value) => (
         <div className="text-sm text-gray-500">
-          {new Date(value).toLocaleDateString()}
+          <div className="flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            {new Date(value).toLocaleDateString()}
+          </div>
+          <div className="text-xs text-gray-400">
+            {new Date(value).toLocaleTimeString()}
+          </div>
         </div>
       )
     },
     {
-      key: 'is_featured',
-      label: 'Featured',
-      sortable: false,
-      render: (value, article) => (
-        <button
-          onClick={() => toggleFeatured(article)}
-          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-            value 
-              ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' 
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          <Star className={`w-3 h-3 ${value ? 'fill-current' : ''}`} />
-          {value ? 'Featured' : 'Regular'}
-        </button>
+      key: 'type',
+      label: 'Type',
+      sortable: true,
+      render: (value) => (
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+          value === 'Breaking' ? 'bg-red-100 text-red-800' :
+          value === 'Video' ? 'bg-blue-100 text-blue-800' :
+          value === 'Photo' ? 'bg-green-100 text-green-800' :
+          'bg-gray-100 text-gray-800'
+        }`}>
+          {value}
+        </span>
       )
     },
     {
-      key: 'source_link',
-      label: 'Source',
+      key: 'is_premium',
+      label: 'Premium',
       sortable: false,
       render: (value) => (
         value ? (
-          <a 
-            href={value} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-primary-600 hover:text-primary-700 text-sm"
-          >
-            <ExternalLink className="w-3 h-3" />
-            View Source
-          </a>
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            <Crown className="w-3 h-3" />
+            Premium
+          </span>
         ) : (
-          <span className="text-gray-400 text-sm">No source</span>
+          <span className="text-gray-400 text-sm">Regular</span>
         )
+      )
+    },
+    {
+      key: 'source',
+      label: 'Source',
+      sortable: false,
+      render: (value) => (
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+          value === 'api' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+        }`}>
+          {value === 'api' ? 'API' : 'Manual'}
+        </span>
       )
     },
     {
@@ -223,21 +225,30 @@ const News = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate(`/news/${news._id}`)}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/news/${news._id}`)
+            }}
           >
             View
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleEditNews(news)}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleEditNews(news)
+            }}
           >
             <Edit className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => handleDeleteNews(news)}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleDeleteNews(news)
+            }}
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -278,20 +289,30 @@ const News = () => {
           />
           
           <select
-            value={filters.featured}
-            onChange={(e) => handleFilterChange('featured', e.target.value)}
+            value={filters.type}
+            onChange={(e) => handleFilterChange('type', e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+          >
+            <option value="">All Types</option>
+            <option value="Story">Story</option>
+            <option value="Video">Video</option>
+            <option value="Photo">Photo</option>
+            <option value="Breaking">Breaking</option>
+          </select>
+          
+          <select
+            value={filters.is_premium}
+            onChange={(e) => handleFilterChange('is_premium', e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
             <option value="">All Articles</option>
-            <option value="true">Featured Only</option>
+            <option value="true">Premium Only</option>
             <option value="false">Regular Only</option>
           </select>
           
-          <div className="md:col-span-2">
-            <Button variant="outline" onClick={resetFilters}>
-              Clear Filters
-            </Button>
-          </div>
+          <Button variant="outline" onClick={resetFilters}>
+            Clear Filters
+          </Button>
         </div>
       </div>
 
@@ -323,6 +344,8 @@ const News = () => {
             columns={columns}
             data={news}
             loading={loading}
+            onRowClick={handleRowClick}
+            rowClassName="cursor-pointer hover:bg-gray-50"
           />
           
           <Pagination

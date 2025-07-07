@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react'
 import { apiService } from '../services/apiService'
 import Button from './ui/Button'
 import Input from './ui/Input'
-import Switch from './ui/Switch'
 import toast from 'react-hot-toast'
 
 const ChannelForm = ({ channel, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    is_active: true
+    name: ''
   })
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
@@ -16,8 +14,7 @@ const ChannelForm = ({ channel, onSave, onCancel }) => {
   useEffect(() => {
     if (channel) {
       setFormData({
-        name: channel.name || '',
-        is_active: channel.is_active !== undefined ? channel.is_active : true
+        name: channel.name || ''
       })
     }
   }, [channel])
@@ -55,7 +52,6 @@ const ChannelForm = ({ channel, onSave, onCancel }) => {
       setLoading(true)
       
       const cleanFormData = {
-        ...formData,
         name: formData.name.trim()
       }
 
@@ -92,16 +88,6 @@ const ChannelForm = ({ channel, onSave, onCancel }) => {
         placeholder="e.g., ESPN, Fox Sports, NBC"
       />
 
-      {/* Active Status */}
-      <div className="border-t border-gray-200 pt-6">
-        <Switch
-          label="Active Status"
-          description="Active channels can be assigned to live matches"
-          checked={formData.is_active}
-          onChange={(checked) => handleInputChange('is_active', checked)}
-        />
-      </div>
-
       {/* Preview */}
       {formData.name && (
         <div className="border-t border-gray-200 pt-6">
@@ -116,7 +102,7 @@ const ChannelForm = ({ channel, onSave, onCancel }) => {
               <div>
                 <div className="font-medium text-gray-900">{formData.name}</div>
                 <div className="text-sm text-gray-500">
-                  Status: {formData.is_active ? 'Active' : 'Inactive'}
+                  Channel for M3U8 stream names
                 </div>
               </div>
             </div>
