@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const BASE_URL = 'https://nfl-backend.vercel.app/api'
+// const BASE_URL = 'https://nfl-backend.vercel.app/api'
+const BASE_URL = 'http://4.240.89.48'
 
 class ApiService {
   constructor() {

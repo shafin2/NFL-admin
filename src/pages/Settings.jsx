@@ -6,6 +6,15 @@ import Input from '../components/ui/Input'
 import Switch from '../components/ui/Switch'
 import LoadingSpinner from '../components/ui/LoadingSpinner'
 import toast from 'react-hot-toast'
+import Table from '../components/ui/Table'
+
+const SCREENS = [
+  { key: 'HomeScreen', label: 'Home Screen' },
+  { key: 'LiveScreen', label: 'Live Screen' },
+  { key: 'NewsScreen', label: 'News Screen' },
+  { key: 'ReplaysScreen', label: 'Replays Screen' },
+  { key: 'ScheduleScreen', label: 'Schedule Screen' },
+]
 
 const Settings = () => {
   const [settings, setSettings] = useState(null)
@@ -47,6 +56,23 @@ const Settings = () => {
     setSettings(prev => ({
       ...prev,
       [field]: value
+    }))
+  }
+
+  // New handler for per-screen ad toggles
+  const handlePerScreenAdChange = (screen, adType, value) => {
+    setSettings(prev => ({
+      ...prev,
+      ads: {
+        ...prev.ads,
+        per_screen: {
+          ...prev.ads?.per_screen,
+          [screen]: {
+            ...prev.ads?.per_screen?.[screen],
+            [adType]: value
+          }
+        }
+      }
     }))
   }
 
@@ -170,6 +196,43 @@ const Settings = () => {
               min={60}
               max={600}
             />
+
+            {/* Per-screen ad settings table */}
+            <div>
+              <h4 className="font-semibold mb-2">Per-Screen Ad Control</h4>
+              <div className="overflow-x-auto">
+                <table className="min-w-full border text-sm">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-3 py-2 border">Screen</th>
+                      <th className="px-3 py-2 border">Banner</th>
+                      <th className="px-3 py-2 border">Interstitial</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {SCREENS.map(screen => (
+                      <tr key={screen.key}>
+                        <td className="px-3 py-2 border font-medium">{screen.label}</td>
+                        <td className="px-3 py-2 border text-center">
+                          <Switch
+                            checked={settings.ads?.per_screen?.[screen.key]?.banner ?? true}
+                            onChange={checked => handlePerScreenAdChange(screen.key, 'banner', checked)}
+                            label=""
+                          />
+                        </td>
+                        <td className="px-3 py-2 border text-center">
+                          <Switch
+                            checked={settings.ads?.per_screen?.[screen.key]?.interstitial ?? true}
+                            onChange={checked => handlePerScreenAdChange(screen.key, 'interstitial', checked)}
+                            label=""
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
 

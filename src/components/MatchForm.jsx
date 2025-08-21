@@ -99,7 +99,7 @@ const MatchForm = ({ match, onSave, onCancel }) => {
   const addM3u8Link = () => {
     setFormData(prev => ({
       ...prev,
-      m3u8_links: [...prev.m3u8_links, { name: '', url: '' }]
+      m3u8_links: [...prev.m3u8_links, { name: '', url: '', userAgent: '', origin: '', referer: '' }]
     }))
   }
 
@@ -300,43 +300,65 @@ const MatchForm = ({ match, onSave, onCancel }) => {
           </div>
 
           {formData.m3u8_links.map((link, index) => (
-            <div key={index} className="flex items-start gap-2">
-              <div className="flex-1">
-                <Select
-                  label={index === 0 ? 'Stream Name' : ''}
-                  value={link.name}
-                  onChange={(e) => handleM3u8LinkChange(index, 'name', e.target.value)}
-                  options={channels.map(channel => ({
-                    value: channel.name,
-                    label: channel.name
-                  }))}
-                  placeholder="Select channel name"
-                  required
-                />
+            <div key={index} className="flex flex-col gap-2 border rounded-lg p-3 mb-2 bg-gray-50">
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  <Select
+                    label={index === 0 ? 'Stream Name' : ''}
+                    value={link.name}
+                    onChange={(e) => handleM3u8LinkChange(index, 'name', e.target.value)}
+                    options={channels.map(channel => ({
+                      value: channel.name,
+                      label: channel.name
+                    }))}
+                    placeholder="Select channel name"
+                    required
+                  />
+                </div>
+                <div className="flex-1">
+                  <Input
+                    label={index === 0 ? 'Stream URL' : ''}
+                    value={link.url}
+                    onChange={(e) => handleM3u8LinkChange(index, 'url', e.target.value)}
+                    placeholder="https://example.com/stream.m3u8"
+                    required
+                  />
+                </div>
+                {formData.m3u8_links.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeM3u8Link(index)}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
-              <div className="flex-1">
+              {/* New fields for headers */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
                 <Input
-                  label={index === 0 ? 'Stream URL' : ''}
-                  value={link.url}
-                  onChange={(e) => handleM3u8LinkChange(index, 'url', e.target.value)}
-                  placeholder="https://example.com/stream.m3u8"
-                  required
+                  label="User-Agent (optional)"
+                  value={link.userAgent || ''}
+                  onChange={e => handleM3u8LinkChange(index, 'userAgent', e.target.value)}
+                  placeholder="e.g. Mozilla/5.0 ..."
+                />
+                <Input
+                  label="Origin (optional)"
+                  value={link.origin || ''}
+                  onChange={e => handleM3u8LinkChange(index, 'origin', e.target.value)}
+                  placeholder="e.g. https://example.com"
+                />
+                <Input
+                  label="Referer (optional)"
+                  value={link.referer || ''}
+                  onChange={e => handleM3u8LinkChange(index, 'referer', e.target.value)}
+                  placeholder="e.g. https://example.com/"
                 />
               </div>
-              {formData.m3u8_links.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeM3u8Link(index)}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
             </div>
           ))}
-          
           {errors.m3u8_links && (
             <p className="text-sm text-red-600">{errors.m3u8_links}</p>
           )}
