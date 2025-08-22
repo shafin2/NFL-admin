@@ -1,19 +1,25 @@
 import axios from 'axios'
 
 // const BASE_URL = 'https://nfl-backend.vercel.app/api'
-const BASE_URL = 'https://d3f8ee61a1e7.ngrok-free.app'
+const BASE_URL = 'https://brave-instantly-catfish.ngrok-free.app'
 
 class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: BASE_URL,
       timeout: 10000,
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
     })
 
     // Create a separate instance for long-running operations like jobs
     this.longRunningApi = axios.create({
       baseURL: BASE_URL,
       timeout: 120000, // 2 minutes for job operations
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
     })
 
     // Request interceptor to add auth token
@@ -22,6 +28,8 @@ class ApiService {
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`
       }
+      // Ensure ngrok header is always present
+      config.headers['ngrok-skip-browser-warning'] = 'true'
       return config
     }
 
@@ -64,7 +72,10 @@ class ApiService {
         username,
         password
       }, {
-        timeout: 5000
+        timeout: 5000,
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
       })
       return response.data
     } catch (error) {
