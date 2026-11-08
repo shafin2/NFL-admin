@@ -242,4 +242,11 @@ theme: {
 
 ## License
 
-This project is part of the NFL App ecosystem. 
+This project is part of the NFL App ecosystem.
+
+
+---
+
+## Author
+
+Built by **[Shafin Zaman](https://www.shafinzaman.dev)** (Shafin Uz Zaman), Senior AI Engineer. Case study: [NFL Streaming App](https://www.shafinzaman.dev/work/nfl-streaming). More of my work: [shafinzaman.dev/work](https://www.shafinzaman.dev/work).
